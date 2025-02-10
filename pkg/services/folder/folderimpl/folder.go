@@ -27,6 +27,7 @@ import (
 	"github.com/grafana/grafana/pkg/infra/tracing"
 	"github.com/grafana/grafana/pkg/services/accesscontrol"
 	"github.com/grafana/grafana/pkg/services/apiserver"
+	"github.com/grafana/grafana/pkg/services/apiserver/client"
 	"github.com/grafana/grafana/pkg/services/apiserver/endpoints/request"
 	"github.com/grafana/grafana/pkg/services/dashboards"
 	"github.com/grafana/grafana/pkg/services/dashboards/dashboardaccess"
@@ -42,7 +43,6 @@ import (
 	"github.com/grafana/grafana/pkg/services/supportbundles"
 	"github.com/grafana/grafana/pkg/services/user"
 	"github.com/grafana/grafana/pkg/setting"
-	"github.com/grafana/grafana/pkg/storage/unified"
 	"github.com/grafana/grafana/pkg/util"
 )
 
@@ -57,7 +57,7 @@ type Service struct {
 	dashboardFolderStore   folder.FolderStore
 	features               featuremgmt.FeatureToggles
 	accessControl          accesscontrol.AccessControl
-	k8sclient              folderK8sHandler
+	k8sclient              client.K8sHandler
 	publicDashboardService publicdashboards.ServiceWrapper
 	// bus is currently used to publish event in case of folder full path change.
 	// For example when a folder is moved to another folder or when a folder is renamed.
@@ -106,13 +106,14 @@ func ProvideService(
 	ac.RegisterScopeAttributeResolver(dashboards.NewFolderUIDScopeResolver(srv))
 
 	if features.IsEnabledGlobally(featuremgmt.FlagKubernetesFoldersServiceV2) {
-		k8sHandler := &foldk8sHandler{
-			gvr:                    v0alpha1.FolderResourceInfo.GroupVersionResource(),
-			namespacer:             request.GetNamespaceMapper(cfg),
-			cfg:                    cfg,
-			restConfigProvider:     apiserver.GetRestConfig,
-			recourceClientProvider: unified.GetResourceClient,
-		}
+		k8sHandler := client.NewK8sHandler(
+			cfg,
+			request.GetNamespaceMapper(cfg),
+			v0alpha1.FolderResourceInfo.GroupVersionResource(),
+			apiserver.GetRestConfig,
+			dashboardStore,
+			userService,
+		)
 
 		unifiedStore := ProvideUnifiedStore(k8sHandler, userService)
 
