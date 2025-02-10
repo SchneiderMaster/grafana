@@ -30,7 +30,8 @@ func TestSearchFallback(t *testing.T) {
 				"dashboards.dashboard.grafana.app": {DualWriterMode: rest.Mode0},
 			},
 		}
-		searchHandler := NewSearchHandler(mockClient, tracing.NewNoopTracerService(), cfg, mockLegacyClient)
+		searchHandler := NewSearchHandler(tracing.NewNoopTracerService(), cfg, mockLegacyClient)
+		searchHandler.client = func(context.Context) resource.ResourceIndexClient { return mockClient }
 
 		rr := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/search", nil)
@@ -56,7 +57,8 @@ func TestSearchFallback(t *testing.T) {
 				"dashboards.dashboard.grafana.app": {DualWriterMode: rest.Mode1},
 			},
 		}
-		searchHandler := NewSearchHandler(mockClient, tracing.NewNoopTracerService(), cfg, mockLegacyClient)
+		searchHandler := NewSearchHandler(tracing.NewNoopTracerService(), cfg, mockLegacyClient)
+		searchHandler.client = func(context.Context) resource.ResourceIndexClient { return mockClient }
 
 		rr := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/search", nil)
@@ -82,7 +84,8 @@ func TestSearchFallback(t *testing.T) {
 				"dashboards.dashboard.grafana.app": {DualWriterMode: rest.Mode2},
 			},
 		}
-		searchHandler := NewSearchHandler(mockClient, tracing.NewNoopTracerService(), cfg, mockLegacyClient)
+		searchHandler := NewSearchHandler(tracing.NewNoopTracerService(), cfg, mockLegacyClient)
+		searchHandler.client = func(context.Context) resource.ResourceIndexClient { return mockClient }
 
 		rr := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/search", nil)
@@ -108,7 +111,8 @@ func TestSearchFallback(t *testing.T) {
 				"dashboards.dashboard.grafana.app": {DualWriterMode: rest.Mode3},
 			},
 		}
-		searchHandler := NewSearchHandler(mockClient, tracing.NewNoopTracerService(), cfg, mockLegacyClient)
+		searchHandler := NewSearchHandler(tracing.NewNoopTracerService(), cfg, mockLegacyClient)
+		searchHandler.client = func(context.Context) resource.ResourceIndexClient { return mockClient }
 
 		rr := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/search", nil)
@@ -134,7 +138,8 @@ func TestSearchFallback(t *testing.T) {
 				"dashboards.dashboard.grafana.app": {DualWriterMode: rest.Mode4},
 			},
 		}
-		searchHandler := NewSearchHandler(mockClient, tracing.NewNoopTracerService(), cfg, mockLegacyClient)
+		searchHandler := NewSearchHandler(tracing.NewNoopTracerService(), cfg, mockLegacyClient)
+		searchHandler.client = func(context.Context) resource.ResourceIndexClient { return mockClient }
 
 		rr := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/search", nil)
@@ -160,7 +165,8 @@ func TestSearchFallback(t *testing.T) {
 				"dashboards.dashboard.grafana.app": {DualWriterMode: rest.Mode5},
 			},
 		}
-		searchHandler := NewSearchHandler(mockClient, tracing.NewNoopTracerService(), cfg, mockLegacyClient)
+		searchHandler := NewSearchHandler(tracing.NewNoopTracerService(), cfg, mockLegacyClient)
+		searchHandler.client = func(context.Context) resource.ResourceIndexClient { return mockClient }
 
 		rr := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/search", nil)
@@ -185,7 +191,7 @@ func TestSearchHandler(t *testing.T) {
 	// Initialize the search handler with the mock client
 	searchHandler := SearchHandler{
 		log:    log.New("test", "test"),
-		client: mockClient,
+		client: func(context.Context) resource.ResourceIndexClient { return mockClient },
 		tracer: tracing.NewNoopTracerService(),
 	}
 
