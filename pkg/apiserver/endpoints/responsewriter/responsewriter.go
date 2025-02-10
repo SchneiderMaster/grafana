@@ -2,12 +2,18 @@ package responsewriter
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"sync/atomic"
 
+	"github.com/grafana/grafana-app-sdk/logging"
+	"github.com/grafana/grafana/pkg/apimachinery/identity"
+	"github.com/grafana/grafana/pkg/infra/log"
+	"k8s.io/apiserver/pkg/authentication/user"
+	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/endpoints/responsewriter"
 	"k8s.io/klog/v2"
 )
@@ -27,7 +33,10 @@ func WrapHandler(handler http.Handler) func(req *http.Request) (*http.Response, 
 	// so the client will be responsible for closing the response body.
 	//nolint:bodyclose
 	return func(req *http.Request) (*http.Response, error) {
-		w := NewAdapter(req)
+		w, err := NewAdapter(req)
+		if err != nil {
+			return nil, err
+		}
 		go func() {
 			handler.ServeHTTP(w, req)
 			if err := w.CloseWriter(); err != nil {
@@ -48,10 +57,17 @@ type ResponseAdapter struct {
 	buffered    *bufio.ReadWriter
 	ready       chan struct{}
 	wroteHeader int32
+	canceler    context.CancelFunc
 }
 
 // NewAdapter returns an initialized [ResponseAdapter].
-func NewAdapter(req *http.Request) *ResponseAdapter {
+func NewAdapter(req *http.Request) (*ResponseAdapter, error) {
+	ctx, cancel, err := createAdapterContext(req)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
 	r, w := io.Pipe()
 	writer := bufio.NewWriter(w)
 	reader := bufio.NewReader(r)
@@ -68,7 +84,69 @@ func NewAdapter(req *http.Request) *ResponseAdapter {
 		writer:   w,
 		buffered: buffered,
 		ready:    make(chan struct{}),
+		canceler: cancel,
+	}, nil
+}
+
+func createAdapterContext(req *http.Request) (context.Context, context.CancelFunc, error) {
+	refCtx := req.Context()
+	ctx := context.Background()
+
+	requester, requesterErr := identity.GetRequester(refCtx)
+	if requesterErr != nil {
+		return nil, nil, requesterErr
 	}
+	ctx = identity.WithRequester(ctx, requester)
+
+	usr, ok := request.UserFrom(refCtx)
+	if !ok {
+		// add in k8s user if not there yet
+		var ok bool
+		usr, ok = requester.(user.Info)
+		if !ok {
+			return nil, nil, fmt.Errorf("could not convert user to Kubernetes user")
+		}
+	}
+	ctx = request.WithUser(ctx, usr)
+
+	// App SDK logger
+	appLogger := logging.FromContext(refCtx)
+	ctx = logging.Context(ctx, appLogger)
+	// Klog logger
+	klogger := klog.FromContext(refCtx)
+	if klogger.Enabled() {
+		ctx = klog.NewContext(ctx, klogger)
+	}
+	// Grafana infra
+	infraLogger := log.FromContext(refCtx)
+	if len(infraLogger) > 0 {
+		ctx = log.WithContextualAttributes(ctx, infraLogger)
+	}
+
+	// TODO: Propagate traceID / span info.
+	// TODO: Is there anything else that is necessary to propagate? E.g. ForwardedBy headers or similar that might exist in the refCtx?
+
+	deadlineCancel := context.CancelFunc(func() {})
+	if deadline, ok := refCtx.Deadline(); ok {
+		ctx, deadlineCancel = context.WithDeadline(ctx, deadline)
+	}
+
+	ctx, cancel := context.WithCancelCause(ctx)
+	// We intentionally do not defer a cancel(nil) here. It wouldn't make sense to cancel until (*ResponseAdapter).Close() is called.
+	go func() { // Even context's own impls do goroutines for this type of pattern.
+		select {
+		case <-ctx.Done():
+			// We don't have to do anything!
+		case <-refCtx.Done():
+			cancel(context.Cause(refCtx))
+		}
+		deadlineCancel()
+	}()
+
+	return ctx, context.CancelFunc(func() {
+		cancel(nil)
+		deadlineCancel()
+	}), nil
 }
 
 // Header implements [http.ResponseWriter].
@@ -159,6 +237,7 @@ func (ra *ResponseAdapter) CloseNotify() <-chan bool {
 
 // Close implements [io.Closer].
 func (ra *ResponseAdapter) Close() error {
+	defer ra.canceler()
 	return ra.reader.Close()
 }
 
