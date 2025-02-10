@@ -735,7 +735,7 @@ func createDashboard(t *testing.T, sqlStore db.DB, user *user.SignedInUser, dash
 		cfg, dashboardStore, folderStore,
 		features, acmock.NewMockedPermissionsService(), ac,
 		foldertest.NewFakeService(), folder.NewFakeStore(),
-		nil, nil, nil, nil, quotaService, nil, nil,
+		nil, nil, nil, quotaService, nil, nil,
 	)
 	require.NoError(t, err)
 	service.RegisterDashboardPermissions(dashPermissionService)
@@ -833,7 +833,7 @@ func testScenario(t *testing.T, desc string, fn func(t *testing.T, sc scenarioCo
 			cfg, dashStore, folderStore,
 			features, acmock.NewMockedPermissionsService(), ac,
 			folderSvc, folder.NewFakeStore(),
-			nil, nil, nil, nil, quotaService, nil, nil,
+			nil, nil, nil, quotaService, nil, nil,
 		)
 		require.NoError(t, err)
 		dashService.RegisterDashboardPermissions(dashPermissionService)

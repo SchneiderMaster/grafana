@@ -112,7 +112,6 @@ func TestValidateDashboardExists(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		nil,
 		quotatest.New(false, nil),
 		nil,
 		nil,

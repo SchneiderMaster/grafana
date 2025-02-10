@@ -38,7 +38,7 @@ type SearchHandler struct {
 	tracer trace.Tracer
 }
 
-func NewSearchHandler(client resource.ResourceIndexClient, tracer trace.Tracer, cfg *setting.Cfg, legacyDashboardSearcher resource.ResourceIndexClient) *SearchHandler {
+func NewSearchHandler(tracer trace.Tracer, cfg *setting.Cfg, legacyDashboardSearcher resource.ResourceIndexClient) *SearchHandler {
 	searchClient := resource.NewSearchClient(cfg, setting.UnifiedStorageConfigKeyDashboard, unified.GetResourceClient, legacyDashboardSearcher)
 	return &SearchHandler{
 		client: searchClient,

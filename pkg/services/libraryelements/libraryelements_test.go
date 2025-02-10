@@ -357,7 +357,6 @@ func createDashboard(t *testing.T, sqlStore db.DB, user user.SignedInUser, dash 
 		nil,
 		nil,
 		nil,
-		nil,
 		quotaService,
 		nil,
 		nil,
@@ -453,7 +452,7 @@ func scenarioWithPanel(t *testing.T, desc string, fn func(t *testing.T, sc scena
 		cfg, dashboardStore, folderStore,
 		features, folderPermissions, ac,
 		folderSvc, fStore,
-		nil, nil, nil, nil, quotaService, nil, nil,
+		nil, nil, nil, quotaService, nil, nil,
 	)
 	require.NoError(t, svcErr)
 	dashboardService.RegisterDashboardPermissions(dashboardPermissions)
@@ -526,7 +525,7 @@ func testScenario(t *testing.T, desc string, fn func(t *testing.T, sc scenarioCo
 			cfg, dashboardStore, folderStore,
 			features, folderPermissions, ac,
 			folderSvc, fStore,
-			nil, nil, nil, nil, quotaService, nil, nil,
+			nil, nil, nil, quotaService, nil, nil,
 		)
 		require.NoError(t, dashSvcErr)
 		dashService.RegisterDashboardPermissions(dashboardPermissions)

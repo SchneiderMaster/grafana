@@ -835,7 +835,7 @@ func getDashboardShouldReturn200WithConfig(t *testing.T, sc *scenarioContext, pr
 	if dashboardService == nil {
 		dashboardService, err = service.ProvideDashboardServiceImpl(
 			cfg, dashboardStore, folderStore, features, folderPermissions,
-			ac, folderSvc, fStore, nil, nil, nil, nil, quotaService, nil, nil,
+			ac, folderSvc, fStore, nil, nil, nil, quotaService, nil, nil,
 		)
 		require.NoError(t, err)
 		dashboardService.(dashboards.PermissionsRegistrationService).RegisterDashboardPermissions(dashboardPermissions)
@@ -843,7 +843,7 @@ func getDashboardShouldReturn200WithConfig(t *testing.T, sc *scenarioContext, pr
 
 	dashboardProvisioningService, err := service.ProvideDashboardServiceImpl(
 		cfg, dashboardStore, folderStore, features, folderPermissions,
-		ac, folderSvc, fStore, nil, nil, nil, nil, quotaService, nil, nil,
+		ac, folderSvc, fStore, nil, nil, nil, quotaService, nil, nil,
 	)
 	require.NoError(t, err)
 
