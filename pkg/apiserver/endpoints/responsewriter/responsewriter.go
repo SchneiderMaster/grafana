@@ -67,6 +67,7 @@ func NewAdapter(req *http.Request) (*ResponseAdapter, error) {
 		cancel()
 		return nil, err
 	}
+	req = req.WithContext(ctx)
 
 	r, w := io.Pipe()
 	writer := bufio.NewWriter(w)
