@@ -89,6 +89,8 @@ func NewAdapter(req *http.Request) (*ResponseAdapter, error) {
 	}, nil
 }
 
+// createAdapterContext creates a new context based on the the req's.
+// It contains vital information such as a logger for the driver of the request, a user for auth, tracing, and deadlines. It propagates the parent's cancellation.
 func createAdapterContext(req *http.Request) (context.Context, context.CancelFunc, error) {
 	refCtx := req.Context()
 	ctx := context.Background()
