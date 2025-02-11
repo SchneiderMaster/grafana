@@ -15,6 +15,7 @@ import (
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/endpoints/responsewriter"
+	"k8s.io/component-base/tracing"
 	"k8s.io/klog/v2"
 )
 
@@ -126,8 +127,10 @@ func createAdapterContext(req *http.Request) (context.Context, context.CancelFun
 		ctx = log.WithContextualAttributes(ctx, infraLogger)
 	}
 
-	// TODO: Propagate traceID / span info.
-	// TODO: Is there anything else that is necessary to propagate? E.g. ForwardedBy headers or similar that might exist in the refCtx?
+	// The tracing package deals with both k8s trace and otel.
+	if span := tracing.SpanFromContext(refCtx); span != nil && *span != (tracing.Span{}) {
+		ctx = tracing.ContextWithSpan(ctx, span)
+	}
 
 	deadlineCancel := context.CancelFunc(func() {})
 	if deadline, ok := refCtx.Deadline(); ok {
