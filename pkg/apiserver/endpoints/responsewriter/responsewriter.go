@@ -93,16 +93,15 @@ func NewAdapter(req *http.Request) (*ResponseAdapter, error) {
 // It contains vital information such as a logger for the driver of the request, a user for auth, tracing, and deadlines. It propagates the parent's cancellation.
 func createAdapterContext(req *http.Request) (context.Context, context.CancelFunc, error) {
 	refCtx := req.Context()
-	ctx := context.Background()
+	newCtx := context.Background()
 
-	requester, requesterErr := identity.GetRequester(refCtx)
-	if requesterErr != nil {
-		return nil, nil, requesterErr
+	requester, _ := identity.GetRequester(refCtx)
+	if requester != nil {
+		newCtx = identity.WithRequester(newCtx, requester)
 	}
-	ctx = identity.WithRequester(ctx, requester)
 
 	usr, ok := request.UserFrom(refCtx)
-	if !ok {
+	if !ok && requester != nil {
 		// add in k8s user if not there yet
 		var ok bool
 		usr, ok = requester.(user.Info)
@@ -110,37 +109,39 @@ func createAdapterContext(req *http.Request) (context.Context, context.CancelFun
 			return nil, nil, fmt.Errorf("could not convert user to Kubernetes user")
 		}
 	}
-	ctx = request.WithUser(ctx, usr)
+	if ok {
+		newCtx = request.WithUser(newCtx, usr)
+	}
 
 	// App SDK logger
 	appLogger := logging.FromContext(refCtx)
-	ctx = logging.Context(ctx, appLogger)
+	newCtx = logging.Context(newCtx, appLogger)
 	// Klog logger
 	klogger := klog.FromContext(refCtx)
 	if klogger.Enabled() {
-		ctx = klog.NewContext(ctx, klogger)
+		newCtx = klog.NewContext(newCtx, klogger)
 	}
 	// Grafana infra
 	infraLogger := log.FromContext(refCtx)
 	if len(infraLogger) > 0 {
-		ctx = log.WithContextualAttributes(ctx, infraLogger)
+		newCtx = log.WithContextualAttributes(newCtx, infraLogger)
 	}
 
 	// The tracing package deals with both k8s trace and otel.
 	if span := tracing.SpanFromContext(refCtx); span != nil && *span != (tracing.Span{}) {
-		ctx = tracing.ContextWithSpan(ctx, span)
+		newCtx = tracing.ContextWithSpan(newCtx, span)
 	}
 
 	deadlineCancel := context.CancelFunc(func() {})
 	if deadline, ok := refCtx.Deadline(); ok {
-		ctx, deadlineCancel = context.WithDeadline(ctx, deadline)
+		newCtx, deadlineCancel = context.WithDeadline(newCtx, deadline)
 	}
 
-	ctx, cancel := context.WithCancelCause(ctx)
+	newCtx, cancel := context.WithCancelCause(newCtx)
 	// We intentionally do not defer a cancel(nil) here. It wouldn't make sense to cancel until (*ResponseAdapter).Close() is called.
 	go func() { // Even context's own impls do goroutines for this type of pattern.
 		select {
-		case <-ctx.Done():
+		case <-newCtx.Done():
 			// We don't have to do anything!
 		case <-refCtx.Done():
 			cancel(context.Cause(refCtx))
@@ -148,7 +149,7 @@ func createAdapterContext(req *http.Request) (context.Context, context.CancelFun
 		deadlineCancel()
 	}()
 
-	return ctx, context.CancelFunc(func() {
+	return newCtx, context.CancelFunc(func() {
 		cancel(nil)
 		deadlineCancel()
 	}), nil
