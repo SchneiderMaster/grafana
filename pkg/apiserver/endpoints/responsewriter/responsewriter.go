@@ -65,7 +65,6 @@ type ResponseAdapter struct {
 func NewAdapter(req *http.Request) (*ResponseAdapter, error) {
 	ctx, cancel, err := createAdapterContext(req)
 	if err != nil {
-		cancel()
 		return nil, err
 	}
 	req = req.WithContext(ctx)
